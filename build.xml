@@ -1,0 +1,59 @@
+<?xml version='1.0' encoding='utf-8'?>
+<project name='hadoop' default='build'>
+
+    <!-- JAR PATHS -->
+    <path id='dependencies'>
+        <fileset dir='/usr/lib/hadoop-0.20'>
+            <include name='*.jar'/>
+        </fileset>
+        <fileset dir='../../beluga-etl-system/lib'>
+            <include name='*.jar'/>
+        </fileset>
+        <fileset dir='/usr/java/latest/jre/lib'>
+            <include name='*.jar'/>
+        </fileset>
+    </path>
+
+    <!-- CLASSPATHS -->
+    <path id='compile.classpath'>
+        <path refid='dependencies'/>
+    </path>
+
+    <path id='runtime.classpath'>
+        <fileset dir='build/jars'>
+            <include name='*.jar'/>
+        </fileset>
+        <path refid='compile.classpath'/>
+    </path>
+
+    <!-- BUILD TARGETS -->
+    <target name='clean'>
+        <delete dir='build'/>
+        <delete dir='lib'/>
+    </target>
+
+    <target name='build' depends='clean'>
+        <mkdir dir='build/classes'/>
+        <mkdir dir='build/jars'/>
+
+        <javac srcdir='src/java' destdir='build/classes' debug='true' debuglevel='lines,source,vars'>
+            <classpath>
+                <path refid='compile.classpath'/>
+            </classpath>
+        </javac>
+
+        <jar basedir='build/classes' destfile='build/jars/hadoop-job.jar'/>
+        <copy file='build/jars/hadoop-job.jar' todir='lib'/>
+    </target>
+
+    <!-- RUN TARGETS -->
+    <target name='run' depends='build'>
+        <java classname='com.grooveshark.hadoop.jobs.CopyFiles' fork='false'>
+            <classpath>
+                <path refid='runtime.classpath'/>
+            </classpath>
+            <arg value="/user/hdfs/tmp/wcin"/>
+            <arg value="/user/hdfs/tmp/wcout"/>
+        </java>
+    </target>
+</project>
