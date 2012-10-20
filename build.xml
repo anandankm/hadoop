@@ -52,8 +52,17 @@
             <classpath>
                 <path refid='runtime.classpath'/>
             </classpath>
-            <arg value="/user/hdfs/tmp/wcin"/>
-            <arg value="/user/hdfs/tmp/wcout"/>
+            <arg value="/user/hive/warehouse/beluga_marketresearch_normalizeddata"/>
+            <arg value="/user/anandan.rangasamy/wc/market_research_1"/>
+        </java>
+    </target>
+
+    <target name='test' depends='build'>
+        <java classname='com.grooveshark.hadoop.jobs.MysqlLoad' fork='false'>
+            <classpath>
+                <path refid='runtime.classpath'/>
+            </classpath>
+            <arg value="ArtistNormalizedMarketResearch_Table1_tmp"/>
         </java>
     </target>
 </project>

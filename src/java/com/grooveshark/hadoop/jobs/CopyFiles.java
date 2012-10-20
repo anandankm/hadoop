@@ -16,13 +16,17 @@ import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
 
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 import java.util.Iterator;
+
+import com.grooveshark.hadoop.db.MysqlAccess;
 
 public class CopyFiles 
 {
@@ -56,12 +60,12 @@ public class CopyFiles
         }
     }
 
-    public static class CopyMapper extends MapReduceBase implements Mapper<LongWritable, Text, Text, Text>
+    public class CopyMapper extends MapReduceBase implements Mapper<Text, Text, Text, Text>
     {
-        public void map(LongWritable key, Text value, OutputCollector<Text, Text> output, Reporter reporter)
+        public void map(Text key, Text value, OutputCollector<Text, Text> output, Reporter reporter)
             throws IOException
         {
-            output.collect(value, new Text(""));
+            //output.collect(value, new Text(""));
         }
     }
 
@@ -86,27 +90,6 @@ public class CopyFiles
         JobClient.runJob(conf);
     }
 
-    public static void convertToSeqFile(String[] args)
-        throws Exception
-    {
-        JobConf conf = new JobConf(CopyFiles.class);
-        conf.setJobName("Convert to SeqFile");
-
-        conf.setMapperClass(Mapper.class);
-        conf.setReducerClass(Reducer.class);
-        conf.setNumReduceTasks(0);
-
-        conf.setOutputKeyClass(LongWritable.class);
-        conf.setOutputValueClass(Text.class);
-
-        conf.setOutputFormat(SequenceFileOutputFormat.class);
-        conf.setInputFormat(TextInputFormat.class);
-
-        FileInputFormat.setInputPaths(conf, new Path(args[0]));
-        FileOutputFormat.setOutputPath(conf, new Path(args[0] + "_seq"));
-        JobClient.runJob(conf);
-    }
-
     public static void copyTextFile(String[] args)
         throws Exception
     {
@@ -120,11 +103,12 @@ public class CopyFiles
         conf.setOutputKeyClass(Text.class);
         conf.setOutputValueClass(Text.class);
 
-        conf.setOutputFormat(TextOutputFormat.class);
+        //conf.setInputFormat(SequenceFileInputFormat.class);
         conf.setInputFormat(TextInputFormat.class);
+        conf.setOutputFormat(TextOutputFormat.class);
 
         FileInputFormat.setInputPaths(conf, new Path(args[0]));
-        FileOutputFormat.setOutputPath(conf, new Path(args[1]));
+        //FileOutputFormat.setOutputPath(conf, new Path(args[1]));
         JobClient.runJob(conf);
     }
 
