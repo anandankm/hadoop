@@ -1,3 +1,5 @@
 .*.swp
-src/java/com/grooveshark/hadoop/db/DBAccess.java
-build/classes
+target
+lib
+log
+*.log
