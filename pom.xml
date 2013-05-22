@@ -33,7 +33,7 @@
         <dependency>
             <groupId>com.grooveshark.util</groupId>
             <artifactId>jUtils</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>1.0</version>
         </dependency>
         <!-- mysql connector -->
         <dependency>
@@ -160,7 +160,7 @@
                                     <groupId>com.grooveshark.hadoop</groupId>
                                     <artifactId>gHadoop</artifactId>
                                     <type>jar</type>
-                                    <version>1.0-SNAPSHOT</version>
+                                    <version>1.0</version>
                                     <overWrite>true</overWrite>
                                     <outputDirectory>${project.build.directory}</outputDirectory>
                                     <destFileName>gHadoop.jar</destFileName>
