@@ -18,5 +18,5 @@ libjars=$(echo $libjars | sed 's/,$//')
 
 sudo -uhdfs sh -c "
 export HADOOP_CLASSPATH=$HADOOP_CLASSPATH
-hadoop jar lib/gHadoop.jar com.grooveshark.hadoop.jobs.MysqlExport -libjars $libjars -myjson dsn.json
+hadoop jar lib/gHadoop.jar com.grooveshark.hadoop.jobs.MysqlExport -libjars $libjars -myjson mysql_export.json
 "
