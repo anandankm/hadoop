@@ -1,0 +1,53 @@
+{
+    "mysql_export": {
+        "jobJar": "lib/gHadoop.jar",
+        "hivePrefix": "/user/anandan/warehouse/",
+        "hiveTable": "hive_test_table",
+        "partition": "test_part='2013-06-01'",
+        "mysqlTable": "Songs",
+        "inputQuery": "select SongID,SongName,ArtistID,ArtistName,GenreID,Popularity from Songs",
+        "countQuery": "select count(*) from Songs",
+        "mysqlDsn" : "grooveshark_dsn1"
+    },
+
+    "grooveshark_dsn1": {
+        "host": "example.grooveshark.com",
+        "db_type": "mysql",
+        "user": "user1",
+        "password": "password1",
+        "db": "db1"
+    },
+
+    "dsn2": {
+        "host": "example.domain.com",
+        "db_type": "mysql",
+        "user": "user2",
+        "password": "password2",
+        "db": "db2"
+    },
+
+    "dsn3": {
+        "db_type": "mongo",
+        "host": "mongo.example.com",
+        "port": "2718",
+        "db": "mongodb_1",
+        "collection": "collection_1"
+    },
+
+    "defaults": {
+        "mongo_host": "localhost",
+        "mongo_port": "2718",
+        "mongo_db": "test",
+        "hive_driver": "org.apache.hadoop.hive.jdbc.HiveDriver",
+        "hive_host": "localhost",
+        "hive_port": "10000",
+        "hive_db": "default",
+        "hive_test_query": "",
+        "mysql_driver": "com.mysql.jdbc.Driver",
+        "mysql_host": "locahost",
+        "mysql_db": "mysql",
+        "mysql_options": "?allowMultiQueries=true",
+        "mysql_user": "root",
+        "mysql_password": "pass"
+    }
+}
