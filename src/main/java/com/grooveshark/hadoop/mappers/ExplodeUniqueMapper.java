@@ -35,7 +35,6 @@ public class ExplodeUniqueMapper extends MapReduceBase implements Mapper<LongWri
         this.mapTaskId = job.get("mapred.task.id");
         this.outputFile = job.get("mapred.output.dir");
         this.jobConf = job;
-            Text session = new Text();
         System.out.println("Outputfile: " + this.outputFile);
     }
 
