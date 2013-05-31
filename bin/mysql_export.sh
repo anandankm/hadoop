@@ -1,5 +1,4 @@
 #!/bin/bash
-cd ../
 mvn package || exit
 ## copy over gHadoop.jar 
 cp lib/gHadoop.jar ~/lib/
