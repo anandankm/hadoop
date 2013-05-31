@@ -45,7 +45,7 @@ import com.grooveshark.util.db.DBProperties;
 import com.grooveshark.util.db.MysqlAccess;
 import com.grooveshark.util.db.MysqlWritable;
 import com.grooveshark.hadoop.mappers.ExplodeUniqueMapper;
-import com.grooveshark.hadoop.mappers.ExplodeUniqueReducer;
+import com.grooveshark.hadoop.reducers.ExplodeUniqueReducer;
 
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
