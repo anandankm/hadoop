@@ -74,7 +74,7 @@ public class MysqlExport extends Configured implements Tool
             String[] mysqlExport = {"mysql_export"};
             JsonElement je = this.dbProps.getJsonElement(mysqlExport);
             this.jobJar = FileUtils.getJsonValue(je, "jobJar");
-            this.hiveprefix = FileUtils.getJsonValue(je, "hivePrefix");
+            this.hivePrefix = FileUtils.getJsonValue(je, "hivePrefix");
             this.hiveTable = FileUtils.getJsonValue(je, "hiveTable");
             this.partition = FileUtils.getJsonValue(je, "partition");
             this.mysqlTable = FileUtils.getJsonValue(je, "mysqlTable");
