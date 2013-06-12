@@ -19,7 +19,9 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,9 +29,11 @@ import java.sql.SQLException;
 import java.sql.ResultSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Properties;
 
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
@@ -42,9 +46,11 @@ import com.grooveshark.util.StringUtils;
 import com.grooveshark.util.DateUtils;
 import com.grooveshark.util.db.DBAccess;
 import com.grooveshark.util.db.DBProperties;
+import com.grooveshark.util.db.HiveProperties;
 import com.grooveshark.util.db.MysqlAccess;
 import com.grooveshark.util.db.MysqlWritable;
 import com.grooveshark.hadoop.mappers.ExplodeUniqueMapper;
+import com.grooveshark.hadoop.mappers.ExplodeUniqueMapperSequence;
 import com.grooveshark.hadoop.reducers.ExplodeUniqueReducer;
 
 import org.apache.log4j.Logger;
@@ -57,12 +63,14 @@ public class ExplodeUnique extends Configured implements Tool
     public String jobJar;
     public String hivePrefix;
     public String hiveTable;
-    public String partitionColumns;
-    public String partitionValues;
+    public LinkedList<String> partitionColumns;
+    public LinkedList<String> partitionValues;
     public String inputPaths = "";
     public String outputPath = "";
     public String threadName;
+    public String runCmd = "";
     public String[] args;
+    public HiveProperties hiveProperties = null;
 
     public void setup(String jsonFile) {
         try {
@@ -70,42 +78,70 @@ public class ExplodeUnique extends Configured implements Tool
             String[] explode = {"explode"};
             JsonElement je = FileUtils.parseJson(jsonFile, explode);
             this.jobJar = FileUtils.getJsonValue(je, "jobJar");
-            this.hivePrefix = FileUtils.getJsonValue(je, "hivePrefix");
-            this.hiveTable = FileUtils.getJsonValue(je, "hiveTable");
-            this.partitionColumns = FileUtils.getJsonValue(je, "partitionColumns");
-            this.partitionValues = FileUtils.getJsonValue(je, "partitionValues");
-            this.outputPath = FileUtils.getJsonValue(je, "outputPath");
+            Properties properties = FileUtils.getProperties("hive-table.properties");
+            this.hiveProperties = new HiveProperties(properties);
+            this.hivePrefix = this.hiveProperties.getHivePrefix();
+            this.hiveTable = this.hiveProperties.getHiveTable();
+            this.partitionColumns = this.hiveProperties.getPartitionColumns();
+            if (this.partitionValues == null) {
+                this.partitionValues = this.hiveProperties.getPartitionValues();
+            } else {
+                this.hiveProperties.setPartitionValues(this.partitionValues);
+            }
+            this.outputPath = this.hiveProperties.getOutputPath();
             StringUtils.logToStdOut(this.threadName, this.jobJar);
             StringUtils.logToStdOut(this.threadName, this.hivePrefix);
             StringUtils.logToStdOut(this.threadName, this.hiveTable);
-            StringUtils.logToStdOut(this.threadName, this.partitionColumns);
-            StringUtils.logToStdOut(this.threadName, this.partitionValues);
+            StringUtils.logToStdOut(this.threadName, this.partitionColumns.toString());
+            StringUtils.logToStdOut(this.threadName, this.partitionValues.toString());
             StringUtils.logToStdOut(this.threadName, this.outputPath);
-            this.createInputPaths();
-            StringUtils.logToStdOut(this.threadName, this.inputPaths);
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
         }
     }
 
-    public void createInputPaths() {
-        String[] pColumns = this.partitionColumns.split(",");
-        String[] pValues = this.partitionValues.split(",");
-        String path = this.hivePrefix + this.hiveTable + "/";
-        for (int i=0; i < pColumns.length; i++) {
-            String pCol = pColumns[i];
-            pCol = pCol.trim();
-            String pVal = pValues[i].trim();
-            path += pCol + "=" + pVal + "/";
-        }
-        this.inputPaths += path.substring(0, path.length() - 1);
-    }
-
-    public int run(String[] args) throws IOException {
+    public void runSequenceExplode(String[] args) throws IOException {
         StringUtils.logToStdOut(this.threadName, "Starting the Explode Unique job.");
         JobConf conf = (JobConf) this.getConf();
         conf.set("mapreduce.input.keyvaluelinerecordreader.key.value.separator", ":");
+        conf.setJobName("ExplodeUnique: " + this.partitionValues);
+        conf.setMapperClass(ExplodeUniqueMapperSequence.class);
+        conf.setNumReduceTasks(0);
+        conf.setNumMapTasks(5);
+
+        conf.setOutputKeyClass(NullWritable.class);
+        conf.setOutputValueClass(Text.class);
+
+        conf.setInputFormat(SequenceFileInputFormat.class);
+        conf.setOutputFormat(TextOutputFormat.class);
+        try {
+            Path outPath = new Path(this.outputPath);
+            if (FileUtils.isHDFSFileExists(outPath, conf)) {
+                StringUtils.logToStdOut(this.threadName, "output file path: " + this.outputPath + " exists.");
+                if (!FileUtils.deleteHDFSFile(outPath, conf)) {
+                    StringUtils.logToStdOut(this.threadName, "output file path: " + this.outputPath + " cannot be deleted. Abort!");
+                    System.exit(1);
+                }
+                StringUtils.logToStdOut(this.threadName, "Deleted: " + this.outputPath);
+            }
+            SequenceFileInputFormat.setInputPaths(conf, this.inputPaths);
+            FileOutputFormat.setOutputPath(conf, outPath);
+            conf.setJar(this.jobJar);
+            StringUtils.logToStdOut(this.threadName, "Starting hadoop job");
+            long start = System.currentTimeMillis();
+            JobClient.runJob(conf);
+            float elapsed = (System.currentTimeMillis() - start)/(float) 1000;
+            StringUtils.logToStdOut(this.threadName, "Done ("+elapsed+" secs).");
+        } catch (Exception e ) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    public void runTextExplode(String[] args) throws IOException {
+        StringUtils.logToStdOut(this.threadName, "Starting the Explode Unique job.");
+        JobConf conf = (JobConf) this.getConf();
         conf.setJobName("ExplodeUnique: " + this.partitionValues);
         conf.setMapperClass(ExplodeUniqueMapper.class);
         conf.setReducerClass(ExplodeUniqueReducer.class);
@@ -121,6 +157,12 @@ public class ExplodeUnique extends Configured implements Tool
         conf.setOutputFormat(TextOutputFormat.class);
         try {
             Path outPath = new Path(this.outputPath);
+            StringUtils.logToStdOut(this.threadName, "outPath: " + outPath.getName());
+            Path[] inPaths = this.hiveProperties.getFileList(conf);
+            for (Path inP : inPaths) {
+                StringUtils.logToStdOut(this.threadName, "inPath: " + inP.toString());
+            }
+
             if (FileUtils.isHDFSFileExists(outPath, conf)) {
                 StringUtils.logToStdOut(this.threadName, "output file path: " + this.outputPath + " exists.");
                 if (!FileUtils.deleteHDFSFile(outPath, conf)) {
@@ -129,7 +171,7 @@ public class ExplodeUnique extends Configured implements Tool
                 }
                 StringUtils.logToStdOut(this.threadName, "Deleted: " + this.outputPath);
             }
-            FileInputFormat.setInputPaths(conf, this.inputPaths);
+            FileInputFormat.setInputPaths(conf, inPaths);
             FileOutputFormat.setOutputPath(conf, outPath);
             conf.setJar(this.jobJar);
             StringUtils.logToStdOut(this.threadName, "Starting hadoop job");
@@ -141,6 +183,14 @@ public class ExplodeUnique extends Configured implements Tool
             e.printStackTrace();
             System.exit(1);
         }
+    }
+
+    public int run(String[] args) throws IOException {
+        if (this.runCmd.equalsIgnoreCase("Sequence")) {
+            runSequenceExplode(args);
+        } else {
+            runTextExplode(args);
+        }
         return 0;
     }
 
@@ -151,13 +201,21 @@ public class ExplodeUnique extends Configured implements Tool
             PropertyConfigurator.configure(is);
         }
         String jsonFile = "";
+        String runCmd = "";
+        String partitionValues = "";
         if (args.length > 0) {
             for (int i = 0; i<args.length; i++) {
-                if (args[i].equals("-myjson")) {
+                if (args[i].equals("--myjson")) {
                     jsonFile = args[i+1];
-                    break;
+                }
+                if (args[i].equals("--run")) {
+                    runCmd = args[i+1];
+                }
+                if (args[i].equals("--partitionValues")) {
+                    partitionValues = args[i+1];
                 }
             }
+            StringUtils.logToStdOut("main", "ParitionValues: " + partitionValues);
         } else {
             StringUtils.logToStdOut("main", "Please provide mysql/hadoop/hive parameters using a json file");
             StringUtils.logToStdOut("main", "json file should be provided as -myjson <jsonfile>");
@@ -166,8 +224,13 @@ public class ExplodeUnique extends Configured implements Tool
         }
         try {
             ExplodeUnique explodeUnique = new ExplodeUnique();
+            explodeUnique.runCmd = runCmd;
+            if (partitionValues.length() > 0) {
+                explodeUnique.partitionValues = StringUtils.splitTrim(partitionValues, ",");
+            }
             StringUtils.logToStdOut("main", "JsonFile: " + jsonFile);
             explodeUnique.setup(jsonFile);
+            System.exit(0);
             JobConf conf = new JobConf();
             ToolRunner.run(conf, explodeUnique, args);
         } catch (Exception e) {
