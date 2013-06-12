@@ -19,10 +19,6 @@ import java.util.LinkedList;
 
 public class ExplodeUniqueMapper extends MapReduceBase implements Mapper<LongWritable, Text, LongWritable, Text>
 {
-    static enum MyCounter
-    {
-        NUM_RECORDS
-    }
     private String mapTaskId;
     private String outputFile;
     private int noRecords = 0;
@@ -43,14 +39,15 @@ public class ExplodeUniqueMapper extends MapReduceBase implements Mapper<LongWri
     {
         this.noRecords++;
         String[] values = value.toString().split("\t");
-        if (values[0].contains("NULL")) {
+        if (values[0].contains("NULL") || values[0].contains("\\N")) {
+            return;
+        }
+        values[1] = values[1].trim();
+        if (values[1].isEmpty()) {
             return;
         }
         LongWritable aid = new LongWritable(Long.parseLong(values[0]));
-        String sessions = values[1].substring(1, values[1].length());
-        sessions = sessions.substring(0, sessions.length() - 1);
-        sessions = sessions.replaceAll("\"","");
-        String[] sesArr = sessions.split(",");
+        String[] sesArr = values[1].split(",");
         for (String ses : sesArr) {
             this.sid.set(ses);
             output.collect(aid, this.sid);
