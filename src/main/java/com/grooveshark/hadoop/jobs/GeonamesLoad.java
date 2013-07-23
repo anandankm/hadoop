@@ -16,8 +16,10 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 
 import com.grooveshark.util.FileUtils;
+import com.grooveshark.util.db.DBProperties;
 import com.grooveshark.util.StringUtils;
 import com.grooveshark.hadoop.mappers.GeonamesLoadMapper;
+import com.grooveshark.hadoop.reducers.GeonamesLoadReducer;
 import com.grooveshark.hadoop.entities.HadoopJob;
 
 
@@ -26,17 +28,17 @@ public class GeonamesLoad extends Configured implements HadoopJob, Tool
     public static Logger log = Logger.getLogger(GeonamesLoad.class);
     private JobIssuer jobIssuer;
 
-    private String mysqlHost;
-    private String mysqlDB;
+    private String mysqlUrl;
     private String mysqlUser;
     private String mysqlPass;
+    private String className = GeonamesLoad.class.getName();
 
-    public GeonamesLoad(JobIssuer jobIssuer) {
+    public GeonamesLoad(JobIssuer jobIssuer) throws Exception {
         this.jobIssuer = jobIssuer;
-        this.mysqlHost = FileUtils.getJsonValue(this.jobIssuer.baseElement, "mysql_host");
-        this.mysqlDB = FileUtils.getJsonValue(this.jobIssuer.baseElement, "mysql_db");
-        this.mysqlUser = FileUtils.getJsonValue(this.jobIssuer.baseElement, "mysql_user");
-        this.mysqlPass = FileUtils.getJsonValue(this.jobIssuer.baseElement, "mysql_pass");
+        DBProperties dbp = new DBProperties();
+        this.mysqlUrl = dbp.getJsonMysqlUrl(this.jobIssuer.baseElement);
+        this.mysqlUser = dbp.getJsonMysqlUser(this.jobIssuer.baseElement);
+        this.mysqlPass = dbp.getJsonMysqlPassword(this.jobIssuer.baseElement);
     }
 
     public int run(String[] args) throws IOException {
@@ -44,8 +46,10 @@ public class GeonamesLoad extends Configured implements HadoopJob, Tool
         JobConf conf = (JobConf) this.getConf();
         conf.setJobName("Geonames Load: " + this.jobIssuer.partitionValues);
         conf.setMapperClass(GeonamesLoadMapper.class);
-        conf.setNumReduceTasks(0);
+        conf.setReducerClass(GeonamesLoadReducer.class);
 
+        conf.setMapOutputKeyClass(Text.class);
+        conf.setMapOutputValueClass(Text.class);
         conf.setOutputKeyClass(NullWritable.class);
         conf.setOutputValueClass(NullWritable.class);
         conf.setInputFormat(TextInputFormat.class);
@@ -56,16 +60,21 @@ public class GeonamesLoad extends Configured implements HadoopJob, Tool
                 StringUtils.logToStdOut(this.jobIssuer.threadName, "Inpath: " + p.toString());
             }
             FileInputFormat.setInputPaths(conf, inPaths);
-            conf.set("mysqlHost", this.mysqlHost);
-            conf.set("mysqlDB", this.mysqlDB);
+            StringUtils.logToStdOut(this.jobIssuer.threadName, "mysqlUrl: " + this.mysqlUrl);
+            StringUtils.logToStdOut(this.jobIssuer.threadName, "mysqlUser: " + this.mysqlUser);
+            StringUtils.logToStdOut(this.jobIssuer.threadName, "mysqlPass: " + this.mysqlPass);
+            conf.set("mysqlUrl", this.mysqlUrl);
             conf.set("mysqlUser", this.mysqlUser);
             conf.set("mysqlPass", this.mysqlPass);
             conf.setJar(this.jobIssuer.jobJar);
+            return 0;
+            /*
             StringUtils.logToStdOut(this.jobIssuer.threadName, "Starting hadoop job");
             long start = System.currentTimeMillis();
             JobClient.runJob(conf);
             float elapsed = (System.currentTimeMillis() - start)/(float) 1000;
             StringUtils.logToStdOut(this.jobIssuer.threadName, "Done ("+elapsed+" secs).");
+            */
         } catch (Exception e ) {
             e.printStackTrace();
             System.exit(1);
