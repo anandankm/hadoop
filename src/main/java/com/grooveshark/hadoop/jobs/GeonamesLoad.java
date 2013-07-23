@@ -31,7 +31,7 @@ public class GeonamesLoad extends Configured implements HadoopJob, Tool
     private String mysqlUrl;
     private String mysqlUser;
     private String mysqlPass;
-    private String className = GeonamesLoad.class.getName();
+    private String className = GeonamesLoad.class.getSimpleName();
 
     public GeonamesLoad(JobIssuer jobIssuer) throws Exception {
         this.jobIssuer = jobIssuer;
@@ -42,7 +42,7 @@ public class GeonamesLoad extends Configured implements HadoopJob, Tool
     }
 
     public int run(String[] args) throws IOException {
-        StringUtils.logToStdOut(this.jobIssuer.threadName, "Starting the Geonames load job.");
+        StringUtils.logToStdOut(this.className, "Starting the Geonames load job.");
         JobConf conf = (JobConf) this.getConf();
         conf.setJobName("Geonames Load: " + this.jobIssuer.partitionValues);
         conf.setMapperClass(GeonamesLoadMapper.class);
@@ -57,23 +57,23 @@ public class GeonamesLoad extends Configured implements HadoopJob, Tool
         try {
             Path[] inPaths = this.jobIssuer.hiveProperties.getFileList(conf);
             for(Path p : inPaths) {
-                StringUtils.logToStdOut(this.jobIssuer.threadName, "Inpath: " + p.toString());
+                StringUtils.logToStdOut(this.className, "Inpath: " + p.toString());
             }
             FileInputFormat.setInputPaths(conf, inPaths);
-            StringUtils.logToStdOut(this.jobIssuer.threadName, "mysqlUrl: " + this.mysqlUrl);
-            StringUtils.logToStdOut(this.jobIssuer.threadName, "mysqlUser: " + this.mysqlUser);
-            StringUtils.logToStdOut(this.jobIssuer.threadName, "mysqlPass: " + this.mysqlPass);
+            StringUtils.logToStdOut(this.className, "mysqlUrl: " + this.mysqlUrl);
+            StringUtils.logToStdOut(this.className, "mysqlUser: " + this.mysqlUser);
+            StringUtils.logToStdOut(this.className, "mysqlPass: " + this.mysqlPass);
             conf.set("mysqlUrl", this.mysqlUrl);
             conf.set("mysqlUser", this.mysqlUser);
             conf.set("mysqlPass", this.mysqlPass);
             conf.setJar(this.jobIssuer.jobJar);
             return 0;
             /*
-            StringUtils.logToStdOut(this.jobIssuer.threadName, "Starting hadoop job");
+            StringUtils.logToStdOut(this.className, "Starting hadoop job");
             long start = System.currentTimeMillis();
             JobClient.runJob(conf);
             float elapsed = (System.currentTimeMillis() - start)/(float) 1000;
-            StringUtils.logToStdOut(this.jobIssuer.threadName, "Done ("+elapsed+" secs).");
+            StringUtils.logToStdOut(this.className, "Done ("+elapsed+" secs).");
             */
         } catch (Exception e ) {
             e.printStackTrace();
