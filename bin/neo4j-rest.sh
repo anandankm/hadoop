@@ -28,6 +28,7 @@ hivePrefix="/user/anandan.rangasamy"
 hiveTable="ar_usersfollowers"
 partitionColumns="tslogged"
 partitionValues="1372737602"
+neo4jDBPath="http://localhost:7474/db/data"
 echo "Running hadoop jar"
 
 hadoop jar $jobJar com.grooveshark.hadoop.jobs.RestNeo4j \
@@ -37,3 +38,4 @@ hadoop jar $jobJar com.grooveshark.hadoop.jobs.RestNeo4j \
     --hivePrefix $hivePrefix \
     --hiveTable $hiveTable \
     --partitionColumns  $partitionColumns \
+    --neo4jDBPath $neo4jDBPath\
