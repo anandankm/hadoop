@@ -29,6 +29,7 @@ public class JobIssuer
     public static Logger log = Logger.getLogger(JobIssuer.class);
     public String jobJar;
     public String jsonFile;
+    public String jsonElement;
     public String hivePrefix;
     public String hiveTable;
     public String hivePropertiesFile;
@@ -36,7 +37,7 @@ public class JobIssuer
     public LinkedList<String> partitionValues = new LinkedList<String>();
     public String inputPaths = "";
     public String outputPath = "";
-    public String threadName;
+    public String className = JobIssuer.class.getSimpleName();
     public String jobName;
     public String jobClass;
     public String runCmd = "";
@@ -46,9 +47,9 @@ public class JobIssuer
 
     public void setup() {
         try {
-            this.threadName = Thread.currentThread().getName();
             if (this.jsonFile != null) {
-                String[] base = {"base"};
+                String[] base = new String[1];
+                base[0] = this.jsonElement;
                 this.baseElement = FileUtils.parseJson(this.jsonFile, base);
                 String jobJarPath = FileUtils.getJsonValue(this.baseElement, "jobJar");
                 if (!jobJarPath.isEmpty()) {
@@ -86,12 +87,12 @@ public class JobIssuer
             } else {
                 this.hiveProperties.setOutputPath(this.outputPath);
             }
-            StringUtils.logToStdOut(this.threadName, "JobJar: " + this.jobJar);
-            StringUtils.logToStdOut(this.threadName, "hivePrefix: " + this.hivePrefix);
-            StringUtils.logToStdOut(this.threadName, "hiveTable: " + this.hiveTable);
-            StringUtils.logToStdOut(this.threadName, "partitionColumns: " + this.partitionColumns.toString());
-            StringUtils.logToStdOut(this.threadName, "partitionValues: " + this.partitionValues.toString());
-            StringUtils.logToStdOut(this.threadName, "ouputPath: " + this.outputPath);
+            StringUtils.logToStdOut(this.className, "JobJar: " + this.jobJar);
+            StringUtils.logToStdOut(this.className, "hivePrefix: " + this.hivePrefix);
+            StringUtils.logToStdOut(this.className, "hiveTable: " + this.hiveTable);
+            StringUtils.logToStdOut(this.className, "partitionColumns: " + this.partitionColumns.toString());
+            StringUtils.logToStdOut(this.className, "partitionValues: " + this.partitionValues.toString());
+            StringUtils.logToStdOut(this.className, "ouputPath: " + this.outputPath);
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -100,14 +101,14 @@ public class JobIssuer
 
     public void setOutputPath(JobConf conf) throws IOException {
         Path outPath = new Path(this.outputPath);
-        StringUtils.logToStdOut(this.threadName, "outPath: " + outPath.getName());
+        StringUtils.logToStdOut(this.className, "outPath: " + outPath.getName());
         if (FileUtils.isHDFSFileExists(outPath, conf)) {
-            StringUtils.logToStdOut(this.threadName, "output file path: " + this.outputPath + " exists.");
+            StringUtils.logToStdOut(this.className, "output file path: " + this.outputPath + " exists.");
             if (!FileUtils.deleteHDFSFile(outPath, conf)) {
-                StringUtils.logToStdOut(this.threadName, "output file path: " + this.outputPath + " cannot be deleted. Abort!");
+                StringUtils.logToStdOut(this.className, "output file path: " + this.outputPath + " cannot be deleted. Abort!");
                 System.exit(1);
             }
-            StringUtils.logToStdOut(this.threadName, "Deleted: " + this.outputPath);
+            StringUtils.logToStdOut(this.className, "Deleted: " + this.outputPath);
         }
         FileOutputFormat.setOutputPath(conf, outPath);
     }
@@ -133,6 +134,9 @@ public class JobIssuer
                 }
                 if (args[i].equals("--myJson")) {
                     this.jsonFile = args[i+1];
+                }
+                if (args[i].equals("--jsonElement")) {
+                    this.jsonElement = args[i+1];
                 }
                 if (args[i].equals("--run")) {
                     this.runCmd = args[i+1];
