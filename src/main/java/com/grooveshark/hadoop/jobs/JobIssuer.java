@@ -32,8 +32,8 @@ public class JobIssuer
     public String hivePrefix;
     public String hiveTable;
     public String hivePropertiesFile;
-    public LinkedList<String> partitionColumns;
-    public LinkedList<String> partitionValues;
+    public LinkedList<String> partitionColumns = new LinkedList<String>();
+    public LinkedList<String> partitionValues = new LinkedList<String>();
     public String inputPaths = "";
     public String outputPath = "";
     public String threadName;
@@ -47,7 +47,7 @@ public class JobIssuer
     public void setup() {
         try {
             this.threadName = Thread.currentThread().getName();
-            if (this.jobJar == null && this.jsonFile != null) {
+            if (this.jsonFile != null) {
                 String[] base = {"base"};
                 this.baseElement = FileUtils.parseJson(this.jsonFile, base);
                 String jobJarPath = FileUtils.getJsonValue(this.baseElement, "jobJar");
