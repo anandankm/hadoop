@@ -49,6 +49,16 @@ public class GeonamesLoadReducer extends MapReduceBase implements Reducer<Text, 
         throws IOException
     {
         ++this.noRecords;
+        while(values.hasNext()) {
+            String[] splits = values.next().toString().split("\t");
+            String city = splits[1].trim();
+            String asciiCity = split[2].trim();
+            String alternateCities = split[3].trim();
+            String latitude = splits[4].trim();
+            String longitude = splits[5].trim();
+            String countrycode = splits[8].trim();
+            String region = splits[10].trim();
+        }
     }
 
     public void close()
