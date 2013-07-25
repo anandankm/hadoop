@@ -47,6 +47,7 @@ public class GeonamesLoad extends Configured implements HadoopJob, Tool
         conf.setJobName("Geonames Load: " + this.jobIssuer.partitionValues);
         conf.setMapperClass(GeonamesLoadMapper.class);
         conf.setReducerClass(GeonamesLoadReducer.class);
+        conf.setNumReduceTasks(10);
 
         conf.setMapOutputKeyClass(Text.class);
         conf.setMapOutputValueClass(Text.class);
@@ -67,14 +68,11 @@ public class GeonamesLoad extends Configured implements HadoopJob, Tool
             conf.set("mysqlUser", this.mysqlUser);
             conf.set("mysqlPass", this.mysqlPass);
             conf.setJar(this.jobIssuer.jobJar);
-            return 0;
-            /*
             StringUtils.logToStdOut(this.className, "Starting hadoop job");
             long start = System.currentTimeMillis();
             JobClient.runJob(conf);
             float elapsed = (System.currentTimeMillis() - start)/(float) 1000;
             StringUtils.logToStdOut(this.className, "Done ("+elapsed+" secs).");
-            */
         } catch (Exception e ) {
             e.printStackTrace();
             System.exit(1);
