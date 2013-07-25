@@ -16,7 +16,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.BufferedWriter;
 import java.sql.ResultSet;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.LinkedList;
 import java.util.Iterator;
 
@@ -29,6 +31,8 @@ public class GeonamesLoadReducer extends MapReduceBase implements Reducer<Text, 
     private String mapTaskId;
     private String inputFile;
     private int noRecords = 0;
+    private int noValues = 0;
+    private int cityLocationsFileSize = 0;
     private JobConf jobConf;
     private String mysqlUrl = "";
     private String mysqlUser = "";
@@ -37,12 +41,33 @@ public class GeonamesLoadReducer extends MapReduceBase implements Reducer<Text, 
     private StringBuilder selectUnion = new StringBuilder();
     private String cityLocationsFile = "CityLocationsFile";
     private BufferedWriter cityLocationsWriter;
+    private List<String> cityList = new LinkedList<String>();
 
     public void configure(JobConf job)
     {
         System.out.println("Entering configure");
         this.mapTaskId = job.get("mapred.task.id");
         this.inputFile = job.get("map.input.file");
+        this.mysqlUrl = job.get("mysqlUrl");
+        this.mysqlUser = job.get("mysqlUser");
+        this.mysqlPass = job.get("mysqlPass");
+        this.setFileWriter();
+        System.out.println("Getting mysql connection.. ");
+        try {
+            this.mysqlAccess = new MysqlAccess(
+                    this.mysqlUrl,
+                    this.mysqlUser,
+                    this.mysqlPass);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.out.println("Error in getting a mysql connection");
+            System.exit(1);
+        }
+        this.jobConf = job;
+    }
+
+    public void setFileWriter()
+    {
         try {
             this.cityLocationsWriter = FileUtils.getWriter(this.cityLocationsFile);
         } catch (IOException e) {
@@ -50,7 +75,6 @@ public class GeonamesLoadReducer extends MapReduceBase implements Reducer<Text, 
             System.out.println("Failed to create a new file");
             System.exit(1);
         }
-        this.jobConf = job;
     }
 
     public void reduce(Text key, Iterator<Text> values, OutputCollector<NullWritable, NullWritable> output, Reporter reporter)
@@ -67,8 +91,16 @@ public class GeonamesLoadReducer extends MapReduceBase implements Reducer<Text, 
             String country = splits[8].trim();
             String region = splits[10].trim();
             this.addToSelectUnion(city, region, country, latitude, longitude);
+            this.noValues++;
+            if (this.cityList.size() > 1000) {
+                this.processCityLocation();
+            }
+            if (this.noValues%100000 == 0) {
+                this.insertAndDeleteFile();
+            }
         }
         this.processCityLocation();
+        this.insertAndDeleteFile();
     }
 
     public void addToSelectUnion(String city, String region, String country, String latitude, String longitude)
@@ -85,76 +117,110 @@ public class GeonamesLoadReducer extends MapReduceBase implements Reducer<Text, 
         this.selectUnion.append(" as Latitude, ");
         this.selectUnion.append(longitude);
         this.selectUnion.append(" as Longitude ");
-        this.selectUnion.append(" from Cities where City = '");
-        this.selectUnion.append(city);
-        this.selectUnion.append("'");
+        this.selectUnion.append(" from Cities where City = ?");
+        this.cityList.add(city);
     }
 
     public void processCityLocation()
     {
-        System.out.println("Getting mysql connection.. ");
-        try {
-            this.mysqlAccess = new MysqlAccess(
-                    this.mysqlUrl,
-                    this.mysqlUser,
-                    this.mysqlPass);
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.out.println("Error in getting a mysql connection");
-            System.exit(1);
-        }
-        System.out.println("Processing select union query.. ");
-        ResultSet cityLocationSet = null;
-        try {
-            cityLocationSet = this.mysqlAccess.executeQuery(this.selectUnion.toString());
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.out.println("Error in executing mysql query");
-        }
-        System.out.println("Writing to CityLocations file.. ");
-        try {
-            this.writeToCityLocations(cityLocationSet);
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.out.println("Error in writing resultSet to local file");
+        if (this.cityList.size() > 0) {
+            PreparedStatement ps = null;
+            try {
+                ps = this.mysqlAccess.getPreparedStatement(this.selectUnion.toString(), this.cityList, 2000);
+            } catch (SQLException e) {
+                e.printStackTrace();
+                System.out.println("Error in executing mysql query");
+            }
+            System.out.println("Writing to CityLocations file.. ");
+            try {
+                this.writeToCityLocations(ps);
+            } catch (SQLException e) {
+                e.printStackTrace();
+                System.out.println("Error in writing resultSet to local file");
+            } finally {
+                if (ps != null) {
+                    try {
+                        ps.close();
+                    } catch (SQLException e) {
+                        System.out.println("Error in closing preparedStatement");
+                        e.printStackTrace();
+                    }
+                }
+                this.cityList.clear();
+                this.selectUnion = new StringBuilder();
+            }
+        } else {
+            System.out.println("All records are processed");
         }
     }
 
-    public void writeToCityLocations(ResultSet resultSet)
+    public void writeToCityLocations(PreparedStatement ps)
         throws SQLException
     {
-        while(resultSet.next()) {
-            StringBuilder cityInfo = new StringBuilder();
-            cityInfo.append(resultSet.getString(1));
-            cityInfo.append("\t");
-            cityInfo.append(resultSet.getString(2));
-            cityInfo.append("\t");
-            cityInfo.append(resultSet.getString(3));
-            cityInfo.append("\t");
-            cityInfo.append(resultSet.getString(4));
-            cityInfo.append("\t");
-            cityInfo.append(resultSet.getString(5));
-            try {
-                FileUtils.writeLine(this.cityLocationsWriter, cityInfo.toString());
-            } catch (IOException e) {
-                throw new SQLException("Failed to write cityInfo to file", e);
+        boolean resultExists = ps.execute();
+        while (resultExists) {
+            ResultSet resultSet = ps.getResultSet();
+            while(resultSet.next()) {
+                StringBuilder cityInfo = new StringBuilder();
+                cityInfo.append(resultSet.getString(1));
+                cityInfo.append("\t");
+                cityInfo.append(resultSet.getString(2));
+                cityInfo.append("\t");
+                cityInfo.append(resultSet.getString(3));
+                cityInfo.append("\t");
+                cityInfo.append(resultSet.getString(4));
+                cityInfo.append("\t");
+                cityInfo.append(resultSet.getString(5));
+                try {
+                    FileUtils.writeLine(this.cityLocationsWriter, cityInfo.toString());
+                } catch (IOException e) {
+                    if (resultSet != null) {
+                        resultSet.close();
+                    }
+                    throw new SQLException("Failed to write cityInfo to file", e);
+                }
+                this.cityLocationsFileSize++;
             }
+            resultSet.close();
+            resultExists = ps.getMoreResults();
         }
+    }
+
+    public void insertAndDeleteFile()
+    {
+        System.out.println("Num records processed: " + this.noRecords);
+        System.out.println("Num values processed: " + this.noValues);
+        System.out.println("CityLocationsFileSize: " + this.cityLocationsFileSize);
+        if (this.cityLocationsFileSize > 0) {
+            try {
+                this.mysqlAccess.loadDataLocal(this.cityLocationsFile, "CityLocations", " SET TSAdded = CURRENT_TIMESTAMP");
+            } catch (SQLException e ) {
+                System.out.println("Failed to load data into CityLocations table");
+                e.printStackTrace();
+            }
+            File f = new File(this.cityLocationsFile);
+            if (!f.delete()) {
+                System.out.println("File '" + this.cityLocationsFile + "' not deleted");
+            }
+            this.cityLocationsFileSize = 0;
+        }
+        this.setFileWriter();
     }
 
     public void close()
     {
         System.out.println("Num records processed: " + this.noRecords);
-        try {
-            this.mysqlAccess.loadDataLocal(this.cityLocationsFile, "CityLocations", " SET TSAdded = CURRENT_TIMESTAMP");
+        System.out.println("Num values processed: " + this.noValues);
+        System.out.println("CityLocationsFileSize: " + this.cityLocationsFileSize);
+        System.out.println("Closing mysql connection");
+        try{
+            this.mysqlAccess.closeConnection();
         } catch (SQLException e ) {
+            System.out.println("Failed to load data into CityLocations table");
             e.printStackTrace();
-            System.out.println("Faile to load data into CityLocations table");
         }
-        File f = new File(this.cityLocationsFile);
-        if (!f.delete()) {
-            System.out.println("File '" + this.cityLocationsFile + "' not deleted");
-        }
+        System.out.println("Mysql connection closed");
+        System.out.println("Reduce successfully completed");
     }
 
 }
