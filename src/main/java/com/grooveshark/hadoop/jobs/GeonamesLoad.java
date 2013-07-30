@@ -47,7 +47,7 @@ public class GeonamesLoad extends Configured implements HadoopJob, Tool
         conf.setJobName("Geonames Load: " + this.jobIssuer.partitionValues);
         conf.setMapperClass(GeonamesLoadMapper.class);
         conf.setReducerClass(GeonamesLoadReducer.class);
-        conf.setNumReduceTasks(10);
+        conf.setNumReduceTasks(16);
 
         conf.setMapOutputKeyClass(Text.class);
         conf.setMapOutputValueClass(Text.class);
