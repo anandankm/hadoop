@@ -46,6 +46,12 @@
             <artifactId>jUtils</artifactId>
             <version>1.0</version>
         </dependency>
+        <!-- jDataStruct Repo -->
+        <dependency>
+            <groupId>com.grooveshark.jdatastruct</groupId>
+            <artifactId>jDataStruct</artifactId>
+            <version>1.0</version>
+        </dependency>
         <!-- mysql connector -->
         <dependency>
             <groupId>mysql</groupId>
