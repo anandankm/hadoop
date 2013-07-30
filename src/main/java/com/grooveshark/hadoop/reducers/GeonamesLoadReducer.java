@@ -24,6 +24,7 @@ import java.util.Iterator;
 
 import com.grooveshark.util.db.MysqlAccess;
 import com.grooveshark.util.FileUtils;
+import com.grooveshark.util.command.CommandExecutor;
 
 public class GeonamesLoadReducer extends MapReduceBase implements Reducer<Text, Text, NullWritable, NullWritable>
 {
@@ -131,7 +132,6 @@ public class GeonamesLoadReducer extends MapReduceBase implements Reducer<Text, 
                 e.printStackTrace();
                 System.out.println("Error in executing mysql query");
             }
-            System.out.println("Writing to CityLocations file.. ");
             try {
                 this.writeToCityLocations(ps);
             } catch (SQLException e) {
@@ -191,6 +191,19 @@ public class GeonamesLoadReducer extends MapReduceBase implements Reducer<Text, 
         System.out.println("Num records processed: " + this.noRecords);
         System.out.println("Num values processed: " + this.noValues);
         System.out.println("CityLocationsFileSize: " + this.cityLocationsFileSize);
+        CommandExecutor executor = new CommandExecutor();
+        String[] cmdArray = new String[3];
+        cmdArray[0] = "wc";
+        cmdArray[1] = "-l";
+        cmdArray[2] = this.cityLocationsFile;
+        List<String> outputList = null;
+        try {
+            outputList = executor.execute(cmdArray);
+        } catch (Exception e) {
+            System.out.println("Failed to execute command. Excpetion:\n"  + e.getMessage());
+            e.printStackTrace();
+        }
+        System.out.println("Output of wc -l CityLocations: " + outputList);
         if (this.cityLocationsFileSize > 0) {
             try {
                 this.mysqlAccess.loadDataLocal(this.cityLocationsFile, "CityLocations", " SET TSAdded = CURRENT_TIMESTAMP");
